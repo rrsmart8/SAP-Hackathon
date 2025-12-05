@@ -58,7 +58,7 @@ public class SessionServiceImpl implements SessionService {
 
 	private static final Logger logger = LoggerFactory.getLogger(SessionServiceImpl.class);
 
-	private static final String HUB_AIRPORT_CODE = "HUB";
+	private static final String HUB_AIRPORT_CODE = "HUB1";
 
 	private final TeamService teamService;
 	private final FlightService flightService;
