@@ -78,6 +78,12 @@ class FlightEvent:
         self.flight_number = data.get("flightNumber")
         self.flight_id = data.get("flightId")
         self.aircraft_type = data.get("aircraftType")
+        self.departure_time = data.get("departureTime")
+        self.arrival_time = data.get("arrivalTime")
+        self.distance = data.get("distance", 0)
+        self.source_airport = data.get("sourceAirportCode")
+        self.dest_airport = data.get("destinationAirportCode")
+        
         pass_data = data.get("passengers", {})
         self.passengers = KitClasses(pass_data.get("first", 0), pass_data.get("business", 0), pass_data.get("premiumEconomy", 0), pass_data.get("economy", 0))
 
@@ -89,7 +95,21 @@ class RoundRequest:
     def add_load(self, flight_id, kit_classes):
         self.flight_loads.append({"flightId": flight_id, "loadedKits": kit_classes.to_dict()})
     def to_dict(self):
-        return {"day": self.day, "hour": self.hour, "flightLoads": self.flight_loads}
+        return {
+            "day": self.day,
+            "hour": self.hour,
+            "flightLoads": self.flight_loads,
+            "purchasingOrders": getattr(self, 'purchasing_orders', [])
+        }
+    
+    def add_purchase(self, kit_type, quantity):
+        """Add a purchasing order"""
+        if not hasattr(self, 'purchasing_orders'):
+            self.purchasing_orders = []
+        self.purchasing_orders.append({
+            "kitType": kit_type,
+            "quantity": quantity
+        })
 
 class RoundResponse:
     def __init__(self, data):
@@ -97,3 +117,59 @@ class RoundResponse:
         self.hour = data.get("hour")
         self.total_cost = data.get("totalCost", 0.0)
         self.flight_updates = [FlightEvent(e) for e in data.get("flightUpdates", [])]
+        self.status = data.get("status", "RUNNING")
+
+
+class Airport:
+    """Represents an airport with kit storage and processing capabilities"""
+    def __init__(self, code, name, hub=False):
+        self.code = code
+        self.name = name
+        self.hub = hub
+        self.storage_capacity = {}  # {kit_type: capacity}
+        self.loading_cost = {}  # {kit_type: cost}
+        self.processing_cost = {}  # {kit_type: cost}
+        self.processing_time = {}  # {kit_type: hours}
+        self.initial_stock = {}  # {kit_type: quantity}
+
+
+class FlightSchedule:
+    """Represents a scheduled flight route"""
+    def __init__(self, flight_number, source, dest, frequency, departure_hour):
+        self.flight_number = flight_number
+        self.source = source
+        self.dest = dest
+        self.frequency = frequency  # Days of week: "1,2,3,4,5" etc
+        self.departure_hour = departure_hour
+
+
+class KitType:
+    """Kit type constants and properties"""
+    FIRST = "FIRST"
+    BUSINESS = "BUSINESS"
+    PREMIUM_ECONOMY = "PREMIUM_ECONOMY"
+    ECONOMY = "ECONOMY"
+    
+    ALL_TYPES = [FIRST, BUSINESS, PREMIUM_ECONOMY, ECONOMY]
+    
+    # Kit properties (from problem description)
+    COSTS = {
+        FIRST: 50,
+        BUSINESS: 30,
+        PREMIUM_ECONOMY: 20,
+        ECONOMY: 10
+    }
+    
+    WEIGHTS = {
+        FIRST: 2.0,
+        BUSINESS: 1.5,
+        PREMIUM_ECONOMY: 1.0,
+        ECONOMY: 0.5
+    }
+    
+    LEAD_TIMES = {
+        FIRST: 48,
+        BUSINESS: 48,
+        PREMIUM_ECONOMY: 24,
+        ECONOMY: 24
+    }

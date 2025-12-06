@@ -1,15 +1,21 @@
 import sys
 import json
 import traceback
+import os
 
 # Add current directory to path so imports work correctly
 sys.path.append(".")
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 
 from player.services.csv_service import CsvService
 from player.services.api_service import ApiService
 from player.services.log_service import LogService
 from player.services.strategy_service import StrategyService
+from player.services.network_flow_strategy import NetworkFlowStrategy
 from player.models import RoundRequest
+
+# Configuration: Choose strategy
+USE_NETWORK_FLOW = True  # Set to False to use old simple strategy
 
 def main():
 
@@ -23,9 +29,21 @@ def main():
     aircraft_map = csv_service.load_aircraft_types()
     airport_map = csv_service.load_airports()
     all_flights = csv_service.load_all_flights()
+
+    if not aircraft_map:
+        main_logger.info("!!! FATAL: No aircraft types loaded! Exiting.")
+        return
     
-    # Strategy loads all data maps
-    strategy = StrategyService(aircraft_map, airport_map, all_flights, main_logger)    
+    # Choose strategy
+    if USE_NETWORK_FLOW:
+        main_logger.info(">>> Using Network Flow Strategy (Time-Expanded Network)")
+        strategy = NetworkFlowStrategy(aircraft_map, airport_map, all_flights, main_logger)
+    else:
+        main_logger.info(">>> Using Simple Strategy")
+        strategy = StrategyService(aircraft_map, main_logger)
+
+    # # Strategy loads all data maps
+    # strategy = StrategyService(aircraft_map, airport_map, all_flights, main_logger)    
 
     try:
         main_logger.info(">>> 2. Start Session...")
@@ -66,7 +84,12 @@ def main():
             # ------------------
 
             # E. Analyze Events (Planning for the next round)
-            strategy.analyze_events(response_obj.flight_updates)
+            if USE_NETWORK_FLOW:
+                # Network flow strategy analyzes and plans in one step
+                strategy.analyze_and_plan(response_obj.flight_updates, current_day, current_hour)
+            else:
+                # Simple strategy
+                strategy.analyze_events(response_obj.flight_updates)
 
             # F. Advance Time
             current_hour += 1
