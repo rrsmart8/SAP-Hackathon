@@ -127,11 +127,25 @@ class FlightEvent:
         self.flight_number = data.get("flightNumber")
         self.flight_id = data.get("flightId")
         self.aircraft_type = data.get("aircraftType")
-        self.departure_time = data.get("departureTime")
-        self.arrival_time = data.get("arrivalTime")
         self.distance = data.get("distance", 0)
-        self.source_airport = data.get("sourceAirportCode")
-        self.dest_airport = data.get("destinationAirportCode")
+        self.source_airport = data.get("originAirport")
+        self.dest_airport = data.get("destinationAirport")
+        
+        # Parse departure time (object with day and hour fields)
+        dep_data = data.get("departure", {})
+        self.departure_day = dep_data.get("day")
+        self.departure_hour = dep_data.get("hour")
+        self.departure_absolute_hour = None
+        if self.departure_day is not None and self.departure_hour is not None:
+            self.departure_absolute_hour = self.departure_day * 24 + self.departure_hour
+        
+        # Parse arrival time (object with day and hour fields)
+        arr_data = data.get("arrival", {})
+        self.arrival_day = arr_data.get("day")
+        self.arrival_hour = arr_data.get("hour")
+        self.arrival_absolute_hour = None
+        if self.arrival_day is not None and self.arrival_hour is not None:
+            self.arrival_absolute_hour = self.arrival_day * 24 + self.arrival_hour
         
         pass_data = data.get("passengers", {})
         self.passengers = KitClasses(pass_data.get("first", 0), pass_data.get("business", 0), pass_data.get("premiumEconomy", 0), pass_data.get("economy", 0))
