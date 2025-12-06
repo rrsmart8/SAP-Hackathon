@@ -18,6 +18,6 @@ public class KitClasses {
 
     @Override
     public String toString() {
-        return String.format("[F:%d B:%d P:%d E:%d]", firstClass, business, premiumEconomy, economy);
+        return String.format("[First:%d Business:%d Premium:%d Economy:%d]", firstClass, business, premiumEconomy, economy);
     }
 }

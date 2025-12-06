@@ -10,8 +10,11 @@ public class StrategyService {
     private final Map<String, AircraftType> aircraftMap;
     private final List<RoundRequest.FlightLoadDto> pendingLoads = new ArrayList<>();
 
-    public StrategyService(Map<String, AircraftType> aircraftMap) {
+    private final LogService logger; 
+
+    public StrategyService(Map<String, AircraftType> aircraftMap, LogService logger) {
         this.aircraftMap = aircraftMap;
+        this.logger = logger;
     }
 
     public void analyzeEvents(List<FlightEvent> events) {
@@ -23,7 +26,7 @@ public class StrategyService {
     }
     
     public void applyDecisionsToRequest(RoundRequest request) {
-        request.flightLoads.addAll(pendingLoads);
+        request.flightLoads.addAll(pendingLoads);        
         pendingLoads.clear();
     }
 
@@ -39,7 +42,7 @@ public class StrategyService {
 
         KitClasses load = new KitClasses(loadF, loadB, loadP, loadE);
         
-        System.out.println("   -> [SCHEDULED] Flight " + event.flightNumber + ": " + "Load: " + load.toString());
+        logger.info("   -> [CHECK-IN] Zbor " + event.flightNumber + " (" + event.flightId + "): " + load.toString());
         pendingLoads.add(new RoundRequest.FlightLoadDto(event.flightId, load));
     }
 }

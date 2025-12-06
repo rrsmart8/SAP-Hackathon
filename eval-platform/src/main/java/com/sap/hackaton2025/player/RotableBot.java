@@ -9,48 +9,53 @@ public class RotableBot {
     public static void main(String[] args) {
         CsvService csvService = new CsvService();
         ApiService apiService = new ApiService();
+
+        LogService logger = new LogService();
         
         // Loading aircraft types from CSV
         Map<String, AircraftType> aircraftMap = csvService.loadAircraftTypes();
-        StrategyService strategy = new StrategyService(aircraftMap);
+        StrategyService strategy = new StrategyService(aircraftMap, logger);
 
         try {
             // Starting the game session
             apiService.startSession();
-            System.out.println("Session ID: " + apiService.getSessionId());
+            logger.info("Session ID:" + apiService.getSessionId());
 
             // Game loop
             int currentDay = 0;
             int currentHour = 0;
             boolean gameRunning = true;
 
-            while (gameRunning) {
+            while (gameRunning) { 
                 RoundRequest request = new RoundRequest();
                 request.day = currentDay;
                 request.hour = currentHour;
                 
                 strategy.applyDecisionsToRequest(request);
-
+                
                 RoundResponse response = apiService.playRound(request);
 
                 if (response == null)
                 {
-                    System.out.println("No response from server, ending game.");
+                    logger.info("Received null response, ending game.");
                     gameRunning = false;
                     break;
                 }
-
-                System.out.printf("--- Day %d : Hour %d | Cost: %.2f | Flights: %d%n",
-                        currentDay, currentHour, response.totalCost, response.flightUpdates.size());
                 
+                logger.info("--- Day " + currentDay + " : Hour " + currentHour +
+                        " | Cost: " + response.totalCost +
+                        " | Flights: " + response.flightUpdates.size());
+
                 // Analyze flight events and update strategy
                 strategy.analyzeEvents(response.flightUpdates);
+                
 
                 currentHour++;
                 if (currentHour >= 24) {
                     currentHour = 0;
                     currentDay++;
                 }
+
             }
 
             apiService.endSession();
