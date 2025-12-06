@@ -81,6 +81,11 @@ def main():
             # 2. Log the Summary to the main history file/console
             main_logger.info(f"--- Day {current_day} : Hour {current_hour} | Cost: {response_obj.total_cost:.2f} | Flights: {len(response_obj.flight_updates)}")
 
+            # Print all response events summary
+            if response_obj.penalties:
+                main_logger.info(f"!!! WARNING: {len(response_obj.penalties)} Penalties received!")
+                for p in response_obj.penalties:
+                    main_logger.info(f"   -> {p}")
             # ------------------
 
             # E. Analyze Events (Planning for the next round)

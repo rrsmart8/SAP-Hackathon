@@ -107,6 +107,20 @@ class FlightInstance:
         self.arrival_day = arr_day
         self.arrival_hour = arr_hour
 
+class Penalty:
+    def __init__(self, data):
+        self.code = data.get("code")
+        self.flight_id = data.get("flightId")
+        self.flight_number = data.get("flightNumber")
+        self.issued_day = data.get("issuedDay")
+        self.issued_hour = data.get("issuedHour")
+        self.amount = data.get("penalty", 0.0) # Suma banilor pierduți
+        self.reason = data.get("reason")
+
+    def __str__(self):
+        # Formatare frumoasă pentru loguri
+        return f"[PENALTY] {self.code} (-{self.amount:.2f}): {self.reason} (Flight: {self.flight_number})"
+
 class FlightEvent:
     def __init__(self, data):
         self.event_type = data.get("eventType")
@@ -153,6 +167,7 @@ class RoundResponse:
         self.total_cost = data.get("totalCost", 0.0)
         self.flight_updates = [FlightEvent(e) for e in data.get("flightUpdates", [])]
         self.status = data.get("status", "RUNNING")
+        self.penalties = [Penalty(p) for p in data.get("penalties", [])]
 
 
 class FlightSchedule:

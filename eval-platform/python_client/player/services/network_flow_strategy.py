@@ -66,7 +66,7 @@ class NetworkFlowStrategy:
                 }
             }
             
-            self.logger.info(f"Processed flight update: {event.flight_number} ({event.event_type})")
+            # self.logger.info(f"Processed flight update: {event.flight_number} ({event.event_type})")
     
     def get_flights_in_horizon(self, current_hour, end_hour):
         """Get all flights scheduled within the planning horizon"""
