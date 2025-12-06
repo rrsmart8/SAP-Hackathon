@@ -15,19 +15,16 @@ class ApiService:
 
     def start_session(self):
         url = f"{self.BASE_URL}/session/start"
-        # POST with empty body
         resp = requests.post(url, headers=self.headers)
         
         if resp.status_code == 200:
             body = resp.text.strip()
-            # Handle potential JSON response or plain string
             if body.startswith("{"):
                 data = resp.json()
                 self.session_id = data.get("sessionId") or data.get("id") or body
             else:
                 self.session_id = body.replace('"', '')
             
-            # Update headers with session ID for future requests
             self.headers["SESSION-ID"] = self.session_id
         else:
             raise Exception(f"Start Failed: {resp.text}")
@@ -45,19 +42,17 @@ class ApiService:
         
         payload = round_request.to_dict()
         
-        # Trimitem cererea
         resp = requests.post(url, headers=self.headers, json=payload)
         
-        # Verificăm dacă jocul s-a terminat
         if resp.status_code == 400 and "Session already ended" in resp.text:
-            return None, None # <-- Returnăm dublu None
+            return None, None #
             
         if resp.status_code != 200:
             raise Exception(f"Server Error {resp.status_code}: {resp.text}")
             
         data = resp.json() 
         
-        # Returnăm TUPLU: (Obiectul procesat, Datele brute)
+        # TUPLU: (Obiectul procesat, Datele brute)
         return RoundResponse(data), data
 
     def get_session_id(self):

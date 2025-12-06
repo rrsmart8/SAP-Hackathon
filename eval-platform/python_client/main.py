@@ -12,10 +12,8 @@ from player.services.strategy_service import StrategyService
 from player.models import RoundRequest
 
 def main():
-    # 1. Initialize Loggers
-    # main_logger: For readable game flow (Day/Hour/Cost)
+
     main_logger = LogService("bot_history.log")
-    # json_logger: Specifically for dumping the huge JSON responses from the server
     json_logger = LogService("server_responses.json")
     
     csv_service = CsvService()
@@ -23,8 +21,11 @@ def main():
 
     main_logger.info(">>> 1. Loading Data...")
     aircraft_map = csv_service.load_aircraft_types()
+
+    if not aircraft_map:
+        main_logger.info("!!! FATAL: No aircraft types loaded! Exiting.")
+        return
     
-    # Initialize Strategy with the main logger (so we see "[ORDERING]" in the history log)
     strategy = StrategyService(aircraft_map, main_logger)
 
     try:
@@ -66,7 +67,6 @@ def main():
             # ------------------
 
             # E. Analyze Events (Planning for the next round)
-            # This is where your strategy looks at 'CHECKED_IN' flights
             strategy.analyze_events(response_obj.flight_updates)
 
             # F. Advance Time
@@ -80,7 +80,6 @@ def main():
 
     except Exception as e:
         main_logger.info(f"!!! CRITICAL ERROR: {e}")
-        # Print full trace to console to help debug crashes
         traceback.print_exc()
 
 if __name__ == "__main__":

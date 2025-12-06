@@ -4,7 +4,7 @@ class StrategyService:
     def __init__(self, aircraft_map, logger):
         self.aircraft_map = aircraft_map
         self.logger = logger
-        self.pending_loads = [] # Stores flight load dicts
+        self.pending_loads = []
 
     def analyze_events(self, events):
         for event in events:
@@ -12,10 +12,7 @@ class StrategyService:
                 self._calculate_load(event)
 
     def apply_decisions(self, round_request):
-        # Move pending loads to the current request
         for load in self.pending_loads:
-            # Manually append because we stored them as ready-to-use dicts or objects
-            # In _calculate_load we add the DTO structure
             round_request.flight_loads.append(load)
         
         # Clear local memory
@@ -23,8 +20,6 @@ class StrategyService:
 
     def _calculate_load(self, event):
         ac_type = self.aircraft_map.get(event.aircraft_type)
-        if not ac_type:
-            return
 
         # LOGIC: Survival Mode (Load exactly what is needed)
         load_e = min(event.passengers.economy, ac_type.economy_capacity)
@@ -34,7 +29,7 @@ class StrategyService:
 
         kits = KitClasses(load_f, load_b, load_p, load_e)
         
-        self.logger.info(f"   -> [ORDERING] Flight {event.flight_number}: {kits}")
+        self.logger.info(f"-> [ORDERING] Flight {event.flight_number}: {kits}")
         
         # Store as the dictionary structure expected by RoundRequest
         self.pending_loads.append({

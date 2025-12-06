@@ -25,3 +25,9 @@ replay_pid*
 
 # Ignore bot history log
 eval-platform/bot_history.log
+
+# Ignore venv
+eval-platform/venv/
+
+# Ignore server_responses.json
+eval-platform/server_responses.json
