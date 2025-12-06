@@ -40,6 +40,25 @@ public class StrategyService {
         int loadF = Math.min(event.passengers.firstClass, type.firstClassKitsCapacity);
         int loadP = Math.min(event.passengers.premiumEconomy, type.premiumEconomyKitsCapacity);
 
+        // Create a ProcessBuilder to call a python script that will call a print
+
+        ProcessBuilder pb = new ProcessBuilder("python3", "scripts/load.py",
+                event.flightNumber,
+                String.valueOf(loadF),
+                String.valueOf(loadB),
+                String.valueOf(loadP),
+                String.valueOf(loadE)
+        );
+
+        pb.inheritIO();
+
+        try {
+            Process process = pb.start();
+            process.waitFor();
+        } catch (Exception e) {
+            logger.info("Eroare la apelarea scriptului de logare a incarcarii: " + e.getMessage());
+        }
+
         KitClasses load = new KitClasses(loadF, loadB, loadP, loadE);
         
         logger.info("   -> [CHECK-IN] Zbor " + event.flightNumber + " (" + event.flightId + "): " + load.toString());
