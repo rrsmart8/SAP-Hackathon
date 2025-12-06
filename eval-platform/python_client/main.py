@@ -24,14 +24,8 @@ def main():
     airport_map = csv_service.load_airports()
     all_flights = csv_service.load_all_flights()
     
-    # Strategy primeste tot
-    strategy = StrategyService(aircraft_map, airport_map, all_flights, main_logger)
-
-    if not aircraft_map:
-        main_logger.info("!!! FATAL: No aircraft types loaded! Exiting.")
-        return
-    
-    strategy = StrategyService(aircraft_map, main_logger)
+    # Strategy loads all data maps
+    strategy = StrategyService(aircraft_map, airport_map, all_flights, main_logger)    
 
     try:
         main_logger.info(">>> 2. Start Session...")
