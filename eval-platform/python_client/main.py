@@ -21,6 +21,11 @@ def main():
 
     main_logger.info(">>> 1. Loading Data...")
     aircraft_map = csv_service.load_aircraft_types()
+    airport_map = csv_service.load_airports()
+    all_flights = csv_service.load_all_flights()
+    
+    # Strategy primeste tot
+    strategy = StrategyService(aircraft_map, airport_map, all_flights, main_logger)
 
     if not aircraft_map:
         main_logger.info("!!! FATAL: No aircraft types loaded! Exiting.")
