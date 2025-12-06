@@ -374,20 +374,20 @@ public class SessionServiceImpl implements SessionService {
 				var fulfilmentTime = ReferenceHour.addHours(day, hour, KitType.B_BUSINESS.replacementLeadTimeHours());
 				kitMovements.accept(buildKitMovementForOrder(fulfilmentTime.day(), fulfilmentTime.hour(),
 						kitPurchasingOrders.business(), KitMovement::setBusinessKits, evaluationSession));
-				operationalCost += KitType.B_BUSINESS.cost() * kitPurchasingOrders.first();
+				operationalCost += KitType.B_BUSINESS.cost() * kitPurchasingOrders.business();
 			}
 			if (kitPurchasingOrders.premiumEconomy() > 0) {
 				var fulfilmentTime = ReferenceHour.addHours(day, hour,
 						KitType.C_PREMIUM_ECONOMY.replacementLeadTimeHours());
 				kitMovements.accept(buildKitMovementForOrder(fulfilmentTime.day(), fulfilmentTime.hour(),
 						kitPurchasingOrders.premiumEconomy(), KitMovement::setPremiumEconomyKits, evaluationSession));
-				operationalCost += KitType.C_PREMIUM_ECONOMY.cost() * kitPurchasingOrders.first();
+				operationalCost += KitType.C_PREMIUM_ECONOMY.cost() * kitPurchasingOrders.premiumEconomy();
 			}
 			if (kitPurchasingOrders.economy() > 0) {
 				var fulfilmentTime = ReferenceHour.addHours(day, hour, KitType.D_ECONOMY.replacementLeadTimeHours());
 				kitMovements.accept(buildKitMovementForOrder(fulfilmentTime.day(), fulfilmentTime.hour(),
 						kitPurchasingOrders.economy(), KitMovement::setEconomyKits, evaluationSession));
-				operationalCost += KitType.D_ECONOMY.cost() * kitPurchasingOrders.first();
+				operationalCost += KitType.D_ECONOMY.cost() * kitPurchasingOrders.economy();
 			}
 		}
 		return operationalCost;
@@ -674,7 +674,13 @@ public class SessionServiceImpl implements SessionService {
 
 		var upcomingFlights = flightService.getUpcomingFlights(evaluationSession.getCurrentDay(),
 				evaluationSession.getCurrentHour());
+		var eogHour = ReferenceHour.addHours(0, 0, numberOfHours - 1);
 		upcomingFlights.forEach(flight -> {
+			if (flight.getActualArrivalDay() > eogHour.day() || (flight.getActualArrivalDay() == eogHour.day()
+					&& flight.getActualArrivalDay() > eogHour.hour())) {
+				// flight arrives after end of game, skip
+				return;
+			}
 			penalties.add(createPenalty(evaluationSession, "END_OF_GAME_UNFULFILLED_FLIGHT_KITS", flight,
 					evaluationSession.getCurrentDay(), evaluationSession.getCurrentHour(),
 					"End of game penalty for unfulfilled kits on flight " + flight.getFlightNumber(),
@@ -714,7 +720,7 @@ public class SessionServiceImpl implements SessionService {
 				new ReferenceHour(flight.getScheduledArrivalDay(), flight.getScheduledArrivalHour()),
 				new PerClassAmount(flight.getPlannedFirstPassengers(), flight.getPlannedBusinessPassengers(),
 						flight.getPlannedPremiumEconomyPassengers(), flight.getPlannedEconomyPassengers()),
-				flight.getScheduledAircraftType().getTypeName());
+				flight.getScheduledAircraftType().getTypeName(), flight.getDistance());
 	}
 
 	private FlightEvent toCheckedInFlight(Flight flight) {
@@ -724,7 +730,7 @@ public class SessionServiceImpl implements SessionService {
 				new ReferenceHour(flight.getScheduledArrivalDay(), flight.getScheduledArrivalHour()),
 				new PerClassAmount(flight.getActualFirstPassengers(), flight.getActualBusinessPassengers(),
 						flight.getActualPremiumEconomyPassengers(), flight.getActualEconomyPassengers()),
-				flight.getActualAircraftType().getTypeName());
+				flight.getActualAircraftType().getTypeName(), flight.getDistance());
 	}
 
 	private FlightEvent toLandedFlight(Flight flight) {
@@ -734,7 +740,7 @@ public class SessionServiceImpl implements SessionService {
 				new ReferenceHour(flight.getActualArrivalDay(), flight.getActualArrivalHour()),
 				new PerClassAmount(flight.getActualFirstPassengers(), flight.getActualBusinessPassengers(),
 						flight.getActualPremiumEconomyPassengers(), flight.getActualEconomyPassengers()),
-				flight.getActualAircraftType().getTypeName());
+				flight.getActualAircraftType().getTypeName(), flight.getActualDistance());
 	}
 
 	private static FlightLoad toFlightLoad(FlightLoadDto dto, EvaluationSession session) {
