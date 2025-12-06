@@ -10,6 +10,7 @@ from player.services.api_service import ApiService
 from player.services.log_service import LogService
 from player.services.strategy_service import StrategyService
 from player.models import RoundRequest
+from player.services.network_flow_strategy import NetworkFlowStrategy
 
 def main():
 
@@ -23,9 +24,8 @@ def main():
     aircraft_map = csv_service.load_aircraft_types()
     airport_map = csv_service.load_airports()
     all_flights = csv_service.load_all_flights()
-    
-    # Strategy loads all data maps
-    strategy = StrategyService(aircraft_map, airport_map, all_flights, main_logger)    
+
+    strategy = NetworkFlowStrategy(aircraft_map, airport_map, all_flights, main_logger)
 
     try:
         main_logger.info(">>> 2. Start Session...")
@@ -66,13 +66,14 @@ def main():
             # ------------------
 
             # E. Analyze Events (Planning for the next round)
-            strategy.analyze_events(response_obj.flight_updates)
+            strategy.analyze_and_plan(response_obj.flight_updates, current_day, current_hour)
 
             # F. Advance Time
             current_hour += 1
             if current_hour >= 24:
                 current_hour = 0
                 current_day += 1
+
 
         # End session cleanly
         api_service.end_session()
