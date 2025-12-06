@@ -27,29 +27,71 @@ class AircraftType:
         self.economy_capacity = cap_e
 
 class Airport:
-    def __init__(self, code, 
-                 stock_f, stock_b, stock_p, stock_e,
-                 cap_f, cap_b, cap_p, cap_e,
-                 proc_f, proc_b, proc_p, proc_e):
+    """Represents an airport with kit storage and processing capabilities"""
+    def __init__(self, code, name=None, hub=False, 
+                 stock_f=None, stock_b=None, stock_p=None, stock_e=None,
+                 cap_f=None, cap_b=None, cap_p=None, cap_e=None,
+                 proc_f=None, proc_b=None, proc_p=None, proc_e=None):
         self.code = code
+        self.name = name or code
+        self.hub = hub
         
-        # Stocks
-        self.stock_first = stock_f
-        self.stock_business = stock_b
-        self.stock_premium = stock_p
-        self.stock_economy = stock_e
+        # Initialize dictionaries for network flow strategy
+        self.storage_capacity = {}
+        self.loading_cost = {}
+        self.processing_cost = {}
+        self.processing_time = {}
+        self.initial_stock = {}
         
-        # Capacities
-        self.capacity_first = cap_f
-        self.capacity_business = cap_b
-        self.capacity_premium = cap_p
-        self.capacity_economy = cap_e
+        # If CSV data provided, populate dictionaries
+        if stock_f is not None:
+            # CSV format: populate from individual values
+            # Use string literals since KitType is defined later
+            self.initial_stock = {
+                "FIRST": stock_f or 0,
+                "BUSINESS": stock_b or 0,
+                "PREMIUM_ECONOMY": stock_p or 0,
+                "ECONOMY": stock_e or 0
+            }
+            self.storage_capacity = {
+                "FIRST": cap_f or 1000,
+                "BUSINESS": cap_b or 1000,
+                "PREMIUM_ECONOMY": cap_p or 1000,
+                "ECONOMY": cap_e or 1000
+            }
+            self.processing_time = {
+                "FIRST": proc_f or 2,
+                "BUSINESS": proc_b or 2,
+                "PREMIUM_ECONOMY": proc_p or 2,
+                "ECONOMY": proc_e or 2
+            }
+            # Default costs
+            self.loading_cost = {
+                "FIRST": 5,
+                "BUSINESS": 5,
+                "PREMIUM_ECONOMY": 5,
+                "ECONOMY": 5
+            }
+            self.processing_cost = {
+                "FIRST": 10,
+                "BUSINESS": 10,
+                "PREMIUM_ECONOMY": 10,
+                "ECONOMY": 10
+            }
         
-        # Processing Times
-        self.proc_time_first = proc_f
-        self.proc_time_business = proc_b
-        self.proc_time_premium = proc_p
-        self.proc_time_economy = proc_e
+        # Legacy attributes for backward compatibility
+        self.stock_first = self.initial_stock.get("FIRST", 0)
+        self.stock_business = self.initial_stock.get("BUSINESS", 0)
+        self.stock_premium = self.initial_stock.get("PREMIUM_ECONOMY", 0)
+        self.stock_economy = self.initial_stock.get("ECONOMY", 0)
+        self.capacity_first = self.storage_capacity.get("FIRST", 1000)
+        self.capacity_business = self.storage_capacity.get("BUSINESS", 1000)
+        self.capacity_premium = self.storage_capacity.get("PREMIUM_ECONOMY", 1000)
+        self.capacity_economy = self.storage_capacity.get("ECONOMY", 1000)
+        self.proc_time_first = self.processing_time.get("FIRST", 2)
+        self.proc_time_business = self.processing_time.get("BUSINESS", 2)
+        self.proc_time_premium = self.processing_time.get("PREMIUM_ECONOMY", 2)
+        self.proc_time_economy = self.processing_time.get("ECONOMY", 2)
 
     def __str__(self):
         return f"{self.code} [Eco Stock: {self.stock_economy}/{self.capacity_economy}]"
@@ -64,13 +106,6 @@ class FlightInstance:
         self.departure_hour = dep_hour
         self.arrival_day = arr_day
         self.arrival_hour = arr_hour
-
-class FlightSchedule:
-    def __init__(self, origin, destination, hour, distance):
-        self.origin = origin
-        self.destination = destination
-        self.hour = hour
-        self.distance = distance
 
 class FlightEvent:
     def __init__(self, data):
@@ -118,19 +153,6 @@ class RoundResponse:
         self.total_cost = data.get("totalCost", 0.0)
         self.flight_updates = [FlightEvent(e) for e in data.get("flightUpdates", [])]
         self.status = data.get("status", "RUNNING")
-
-
-class Airport:
-    """Represents an airport with kit storage and processing capabilities"""
-    def __init__(self, code, name, hub=False):
-        self.code = code
-        self.name = name
-        self.hub = hub
-        self.storage_capacity = {}  # {kit_type: capacity}
-        self.loading_cost = {}  # {kit_type: cost}
-        self.processing_cost = {}  # {kit_type: cost}
-        self.processing_time = {}  # {kit_type: hours}
-        self.initial_stock = {}  # {kit_type: quantity}
 
 
 class FlightSchedule:

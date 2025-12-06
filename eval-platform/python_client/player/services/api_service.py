@@ -26,6 +26,32 @@ class ApiService:
                 self.session_id = body.replace('"', '')
             
             self.headers["SESSION-ID"] = self.session_id
+        elif resp.status_code == 409:
+            # Session already exists - try to end it first, then start new one
+            print("   -> [WARNING] Active session exists, ending it first...")
+            try:
+                # Try to get session ID from error response or use a dummy one to end
+                error_data = resp.json()
+                # End the existing session
+                end_url = f"{self.BASE_URL}/session/end"
+                requests.post(end_url, headers=self.headers)
+                # Wait a bit and retry
+                import time
+                time.sleep(0.5)
+                # Now start new session
+                resp = requests.post(url, headers=self.headers)
+                if resp.status_code == 200:
+                    body = resp.text.strip()
+                    if body.startswith("{"):
+                        data = resp.json()
+                        self.session_id = data.get("sessionId") or data.get("id") or body
+                    else:
+                        self.session_id = body.replace('"', '')
+                    self.headers["SESSION-ID"] = self.session_id
+                else:
+                    raise Exception(f"Start Failed after ending session: {resp.text}")
+            except Exception as e:
+                raise Exception(f"Could not handle existing session: {e}")
         else:
             raise Exception(f"Start Failed: {resp.text}")
 

@@ -3,7 +3,7 @@ import csv
 from player.models import AircraftType, Airport, FlightSchedule, FlightInstance
 
 class CsvService:
-    DATA_FOLDER = "/mnt/c/Users/Robert/Desktop/Work/Hack/SAP-Hackathon/eval-platform/src/main/resources/liquibase/data/"
+    DATA_FOLDER = "../src/main/resources/liquibase/data/"
 
     def load_aircraft_types(self):
         aircraft_map = {}
