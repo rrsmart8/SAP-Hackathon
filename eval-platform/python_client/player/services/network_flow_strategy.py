@@ -23,6 +23,8 @@ class NetworkFlowStrategy:
 
         self.kit_types = ['FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY']
         
+        self.flight_events_map = {}  # {flight_id: FlightEvent}
+
         # Initialize inventory from airport initial stocks
         self._initialize_inventory()
 
@@ -56,67 +58,15 @@ class NetworkFlowStrategy:
         self.logger.info(f"Applied {len(round_request.flight_loads)} flight loads, "
                         f"{len(self.pending_decisions.get('purchasingOrders', []))} purchases")
 
-    def process_flight_updates(self, flight_events):
-        """Process flight updates from API response"""
-        for event in flight_events:
-            flight_id = event.flight_id
-            
-            # Initialize or update flight info
-            if flight_id not in self.flights_info:
-                self.flights_info[flight_id] = {
-                    'id': flight_id,
-                    'number': event.flight_number,
-                    'source': event.source_airport,
-                    'dest': event.dest_airport,
-                }
-            
-            flight = self.flights_info[flight_id]
-            flight['event_type'] = event.event_type
-            
-            # Update flight details based on event type
-            if event.aircraft_type:
-                flight['aircraft'] = event.aircraft_type
-            if event.distance:
-                flight['distance'] = event.distance
-            
-            # Store absolute hours for easier comparison
-            if event.departure_absolute_hour is not None:
-                flight['departure_hour'] = event.departure_absolute_hour
-            if event.arrival_absolute_hour is not None:
-                flight['arrival_hour'] = event.arrival_absolute_hour
-            
-            # Update passenger counts
-            flight['passengers'] = {
-                'FIRST': event.passengers.first,
-                'BUSINESS': event.passengers.business,
-                'PREMIUM_ECONOMY': event.passengers.premiumEconomy,
-                'ECONOMY': event.passengers.economy
-            }
-            
-            # Add fuel cost per km (default value)
-            flight['fuel_cost_per_km'] = 0.5
     
     def get_flights_in_horizon(self, current_hour, end_hour):
         """Get all flights scheduled within the planning horizon"""
         flights_in_horizon = []
         
-        for flight_id, flight in self.flights_info.items():
-            if flight['departure_time']:
-                # Parse departure time to hour
-                # Assuming format: "2024-01-01T10:00:00"
-                try:
-                    dep_hour = self._parse_hour(flight['departure_time'])
-                    arr_hour = self._parse_hour(flight['arrival_time']) if flight['arrival_time'] else dep_hour + 2
-                    
-                    if current_hour <= dep_hour < end_hour:
-                        flights_in_horizon.append({
-                            **flight,
-                            'departure_hour': dep_hour,
-                            'arrival_hour': arr_hour,
-                            'fuel_cost_per_km': 0.5  # Default value
-                        })
-                except Exception as e:
-                    self.logger.info(f"Error parsing flight time: {e}")
+        for flight in self.flight_schedule:
+            dep_hour = self._get_absolute_hour(flight.scheduled_depart_day, flight.scheduled_depart_hour)
+            if current_hour <= dep_hour < end_hour:
+                flights_in_horizon.append(flight)
         
         return flights_in_horizon
     
@@ -124,6 +74,12 @@ class NetworkFlowStrategy:
         """Convert day and hour to absolute hour"""
         return day * 24 + hour
     
+    def process_flight_updates(self, flight_events):
+        """Process flight events to update internal flight info"""
+        for event in flight_events:
+            # Store the event object directly
+            self.flight_events_map[event.flight_id] = event
+
     def build_network(self, current_hour):
         """Build time-expanded network for optimization"""
         
@@ -138,7 +94,6 @@ class NetworkFlowStrategy:
         for t in range(self.planning_horizon - 1):
             for airport_code, airport in self.airports.items():
                 for kit_type in self.kit_types:
-
                     if kit_type == 'FIRST':
                         capacity = airport.capacity_first
                         graph.add_storage_edge(airport_code, t, 'FIRST', capacity, storage_cost=0)
@@ -158,19 +113,18 @@ class NetworkFlowStrategy:
         upcoming_flights = self.get_flights_in_horizon(current_absolute_hour, current_absolute_hour + self.planning_horizon)
         
         for flight in upcoming_flights:
-            # Calculate relative time from current hour
-            dep_time = flight['departure_hour'] - current_absolute_hour
-            arr_time = flight['arrival_hour'] - current_absolute_hour
             
-            if dep_time < 0:
-                continue  # Already departed
+            # Calculate relative time from current hour
+            dep_time = self._get_absolute_hour(flight.scheduled_depart_day, flight.scheduled_depart_hour)
+            arr_time = self._get_absolute_hour(flight.scheduled_arrival_day, flight.scheduled_arrival_hour)
             
             for kit_type in self.kit_types:
                 # Calculate cost
-                source_airport = self.airports.get(flight['source'])
-                dest_airport = self.airports.get(flight['dest'])
+                source_airport = self.airports.get(flight.origin_airport_id)
+                dest_airport = self.airports.get(flight.destination_airport_id)
                 
                 if not source_airport or not dest_airport:
+                    # self.logger.info(f"Skipping flight {flight.id} due to missing airport data")
                     continue
                 
                 # --- MODIFICARE 1: Setare Greutate (Weight) Manual ---
@@ -231,14 +185,26 @@ class NetworkFlowStrategy:
         
         # D. Add demand edges (penalty for not meeting requirements)
         for flight in upcoming_flights:
-            dep_time = flight['departure_hour'] - current_absolute_hour
+            dep_time = self._get_absolute_hour(flight.scheduled_depart_day, flight.scheduled_depart_hour)
             
             if dep_time < 0:
+                continue
+
+            flight_event = self.flight_events_map.get(flight.id)
+            if not flight_event:
                 continue
             
             # --- MODIFICARE 3: Iteram prin self.kit_types in loc de KitType.ALL_TYPES ---
             for kit_type in self.kit_types:
-                required = flight['passengers'].get(kit_type, 0)
+                required = 0
+                if kit_type == 'FIRST':
+                    required = flight_event.passengers.first
+                elif kit_type == 'BUSINESS':
+                    required = flight_event.passengers.business
+                elif kit_type == 'PREMIUM_ECONOMY':
+                    required = flight_event.passengers.premiumEconomy
+                elif kit_type == 'ECONOMY':
+                    required = flight_event.passengers.economy
                 
                 if required > 0:
                     # --- MODIFICARE 4: Setare Cost Kit Manual ---
@@ -248,11 +214,12 @@ class NetworkFlowStrategy:
                     elif kit_type == 'PREMIUM_ECONOMY': kit_cost = 20
                     elif kit_type == 'ECONOMY': kit_cost = 10
 
-                    penalty = flight['distance'] * kit_cost * 10  # UNFULFILLED_PASSENGERS_FACTOR
+                    distance = flight_event.distance if flight_event.distance else 1000
+                    penalty = distance * kit_cost * 10  # UNFULFILLED_PASSENGERS_FACTOR
                     
                     graph.add_demand_edge(
-                        flight['id'],
-                        flight['source'],
+                        flight.id,
+                        flight.origin_airport_id,  # Use attribute not dict access
                         dep_time,
                         kit_type,
                         required,
@@ -315,7 +282,7 @@ class NetworkFlowStrategy:
         if solution.kit_loads:
             for flight_id, kits in solution.kit_loads.items():
                 flight = self.flights_info.get(flight_id)
-                if flight and flight.get('departure_hour') == current_absolute_hour:
+                if flight and (flight['scheduled_departure_day'] * 24 + flight['scheduled_departure_hour'] == current_absolute_hour):
                     loads[flight_id] = kits
                     loads[flight_id] = kits
         
@@ -370,7 +337,7 @@ class NetworkFlowStrategy:
         current_absolute_hour = current_day * 24 + current_hour
         
         # Process flight updates
-        # self.process_flight_updates(flight_events)
+        self.process_flight_updates(flight_events)
         
         # Debug: Check what flights we have
         total_flights = len(self.flights_info)
